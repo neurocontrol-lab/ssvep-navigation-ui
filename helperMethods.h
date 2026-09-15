@@ -14,3 +14,10 @@ std::string timeLeft(const std::function<void(int, int, int, int)>& func, clock_
 
 // Texture Loader Utility
 GLuint maketex(const char* tfile, GLint xSize, GLint ySize);
+
+// Requires a current OpenGL context. Refresh rate is OS-reported, not measured.
+struct DisplayTiming {
+    bool vsyncEnabled;
+    double refreshHz;
+};
+DisplayTiming initializeDisplayTiming();

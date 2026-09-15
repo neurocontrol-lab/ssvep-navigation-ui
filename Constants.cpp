@@ -46,3 +46,25 @@ extern std::vector<std::string> TEXTURE_PATHS = {};
 extern GLint SOLUTION_PATH = 2;
 extern GLint FALSE_PATH = 1;
 extern GLint NO_PATH = 0;
+
+// Provisional calibration settings. Require photodiode and EEG validation.
+const unsigned SSVEP_FORWARD_PERIOD_FRAMES = 7;
+const unsigned SSVEP_BACKWARD_PERIOD_FRAMES = 6;
+const unsigned SSVEP_TURN_LEFT_PERIOD_FRAMES = 5;
+const unsigned SSVEP_TURN_RIGHT_PERIOD_FRAMES = 4;
+const SsvepTargetConfig SSVEP_TARGETS[4] = {
+    {0.50f, 0.88f, "FORWARD [Up / W]", SSVEP_FORWARD_PERIOD_FRAMES},
+    {0.50f, 0.12f, "BACKWARD [Down / S]", SSVEP_BACKWARD_PERIOD_FRAMES},
+    {0.12f, 0.50f, "TURN LEFT [Left]", SSVEP_TURN_LEFT_PERIOD_FRAMES},
+    {0.88f, 0.50f, "TURN RIGHT [Right]", SSVEP_TURN_RIGHT_PERIOD_FRAMES}
+};
+// Target size scales to the viewport relative to this reference resolution.
+const float SSVEP_REFERENCE_WIDTH_PX = 1920.0f;
+const float SSVEP_REFERENCE_HEIGHT_PX = 1080.0f;
+const float SSVEP_TARGET_SIZE_PX = 140.0f;
+// Fixed-pixel spacing matches GLUT's non-scaling bitmap font.
+const float SSVEP_PANEL_PADDING_PX = 8.0f;
+const float SSVEP_BORDER_WIDTH_PX = 2.0f;
+const float SSVEP_LABEL_OFFSET_PX = 16.0f;
+const float SSVEP_TEXT_LINE_HEIGHT_PX = 15.0f;
+const float SSVEP_FOOTER_BASELINE_PX = 12.0f;

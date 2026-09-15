@@ -2,7 +2,7 @@
 
 A research project investigating EEG-based control of a 3D maze using steady-state visual evoked potentials (SSVEP) and canonical correlation analysis (CCA). The existing C++/OpenGL/FreeGLUT environment provides a testbed for evaluating neural command decoding and closed-loop navigation.
 
-**Current status:** the keyboard/mouse-controlled navigation environment is implemented. Visual stimulation, EEG acquisition integration, CCA decoding, and neural control are planned; this repository does not yet provide a working EEG-controlled system.
+**Current status:** manual navigation and four frame-sequenced visual targets are implemented. Optical timing validation, EEG acquisition integration, CCA decoding, and neural control remain pending; this repository does not yet provide a working EEG-controlled system.
 
 ## Research direction
 
@@ -34,7 +34,7 @@ Originally developed for **UCSB CS280, Spring 2022**, the environment includes c
 
 <p align="center">
   <a href="https://youtu.be/9cJ7eTtbbqo">
-    <img src="resources/3.webp" width="70%" alt="Existing OpenGL maze navigation environment">
+    <img src="resources/screenshots/3.webp" width="70%" alt="Existing OpenGL maze navigation environment">
   </a>
 </p>
 <p align="center">
@@ -51,6 +51,36 @@ Originally developed for **UCSB CS280, Spring 2022**, the environment includes c
 - **Escape:** exit.
 
 These are the current manual controls; the planned BCI left/right commands will turn the viewpoint.
+
+### Visual targets
+
+<p align="center">
+  <img src="resources/screenshots/flickering_targets.png" width="85%" alt="SSVEP navigation interface with four directional stimulus targets and the upper-right HUD">
+</p>
+<p align="center">
+  <em>Four directional SSVEP targets overlaid on the maze. This screenshot captures their appearance at one instant; it does not show or validate flicker timing.</em>
+</p>
+
+Four opaque black/white squares are anchored at top center (forward), bottom center (backward), left center (turn left), and right center (turn right). Their centers are inset to 12%/88% of the viewport; their size scales from 140 pixels at 1920 x 1080. Static labels sit outside the flickering area, and the upper-right compass/timer remains in place.
+
+- **F1:** pause/resume flicker. Paused targets remain visible in gray; resuming restarts their frame sequence.
+- Flicker pauses during victory/game-over screens.
+- VSync is requested at startup. If unavailable, targets start paused; F1 can enable an unvalidated preview.
+
+Provisional sequences (one sequence step per buffer swap). Assuming one swap per display refresh, **nominal stimulus frequency = monitor refresh rate / total frames per cycle**. Values below are in Hz, rounded to two decimal places; they are calculated fundamentals, not measured optical output.
+
+| Target | Bright/dark frames | 60 Hz monitor | 75 Hz monitor | 90 Hz monitor | 100 Hz monitor | 120 Hz monitor |
+|---|---|---|---|---|---|---|
+| Forward | 3 / 4 | 8.57 | 10.71 | 12.86 | 14.29 | 17.14 |
+| Backward | 3 / 3 | 10.00 | 12.50 | 15.00 | 16.67 | 20.00 |
+| Turn left | 2 / 3 | 12.00 | 15.00 | 18.00 | 20.00 | 24.00 |
+| Turn right | 2 / 2 | 15.00 | 18.75 | 22.50 | 25.00 | 30.00 |
+
+**Relation to gamma:** gamma is commonly described as approximately 30–80 Hz, with boundaries varying across studies ([human visual cortex study](https://pubmed.ncbi.nlm.nih.gov/24855114/)). These fundamentals span 8.57–30 Hz across the listed refresh rates: most are below gamma, and the right target at 120 Hz reaches its commonly used lower boundary. They are therefore not all "within gamma," nor strictly below 30 Hz. Gamma-band boundaries are not a stimulation safety or comfort limit. Harmonics used by CCA can extend into and above gamma; for example, a 30 Hz fundamental has second and third harmonics at 60 and 90 Hz. Select acquisition/filter bandwidth and CCA references for the harmonics actually used.
+
+The named `SSVEP_*` settings and target table in `Constants.cpp` define frame periods, positions, reference resolution, target size, and spacing. Target dimensions are derived from the viewport at runtime; bitmap-label spacing stays in pixels. Odd periods have unequal bright/dark durations. Frequencies scale with display refresh rate; labels use the OS-reported rate, not an optical measurement. Driver overrides, variable refresh, missed refreshes, and compositor behavior can change actual timing. Use fixed refresh and validate every target with a photodiode while navigating before EEG experiments. These provisional frequencies are not a calibrated CCA configuration; assess harmonic overlap and decoding performance before selecting the final set.
+
+The initial stimulus is solid monochrome to simplify timing measurements. Colored or patterned stimuli require separate contrast and decoding validation; the stimulus does not inherit maze lighting or textures.
 
 ## Background and demo
 

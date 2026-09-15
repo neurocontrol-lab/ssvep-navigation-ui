@@ -35,6 +35,9 @@ bool gameOver = false, youWon = false;
 // Track if keys are currently held down (Supports both lower & upper case)
 bool keys[256] = { false };
 bool specialKeys[256] = { false };
+bool flickerEnabled = true;
+unsigned long long stimulusFrame = 0;
+double displayRefreshHz = 0.0;
 
 // Jump configurations (Adjust these values to change jump feel)
 const float GRAVITY = -28.0f;       // Acceleration pulling you down
@@ -219,7 +222,7 @@ void update_movement()
         move_relative(forward_amt, strafe_amt);
     }
 
-    if (camera_y <= FLOOR_HEIGHT) { // Changed from <=0.0f to match your baseline floor check
+    if (!gameOver && !youWon) {
         if (specialKeys[GLUT_KEY_RIGHT]) rot_x += current_turn_speed;
         if (specialKeys[GLUT_KEY_LEFT])  rot_x -= current_turn_speed;
     }
@@ -311,8 +314,12 @@ void drawscene()
      }
  }
  draw_HUD(draw_ortho_compass(rot_x));
+ const bool stimulusActive = flickerEnabled && !gameOver && !youWon;
+ draw_ssvep_targets(stimulusFrame, stimulusActive, displayRefreshHz);
 
  glutSwapBuffers();
+ if (stimulusActive) ++stimulusFrame;
+ else stimulusFrame = 0;
 }
 
 
@@ -361,12 +368,16 @@ void keypress_up(unsigned char key, int x, int y)
 // --- ARROW / SPECIAL KEYS ---
 void arrows(int key, int x, int y)
 {
-    if (key < 256) specialKeys[key] = true;
+    if (key == GLUT_KEY_F1 && !specialKeys[GLUT_KEY_F1]) {
+        flickerEnabled = !flickerEnabled;
+        stimulusFrame = 0;
+    }
+    if (key >= 0 && key < 256) specialKeys[key] = true;
 }
 
 void arrows_up(int key, int x, int y)
 {
-    if (key < 256) specialKeys[key] = false;
+    if (key >= 0 && key < 256) specialKeys[key] = false;
 }
 
 int main(int argc, char** argv)
@@ -379,7 +390,11 @@ int main(int argc, char** argv)
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
 
     // FIXED: You must create the window BEFORE registering callbacks or setting up GL
-    int window = glutCreateWindow("openGLmaze by _Satyam_");
+    int window = glutCreateWindow("SSVEP Navigation UI");
+    const DisplayTiming timing = initializeDisplayTiming();
+    displayRefreshHz = timing.refreshHz;
+    flickerEnabled = timing.vsyncEnabled;
+    glutIgnoreKeyRepeat(1);
 
     glutDisplayFunc(drawscene);
     glutIdleFunc(drawscene); // Keeps the loop executing continuously

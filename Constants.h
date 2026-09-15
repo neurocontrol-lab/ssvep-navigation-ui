@@ -66,3 +66,24 @@ extern GLint SOLUTION_PATH;
 extern GLint FALSE_PATH;
 extern GLint NO_PATH;
 
+
+// SSVEP configuration: normalized centers use the bottom-left origin.
+// A period is one complete bright/dark cycle in presented frames.
+struct SsvepTargetConfig {
+    float x, y;
+    const char* label;
+    unsigned periodFrames;
+};
+extern const unsigned SSVEP_FORWARD_PERIOD_FRAMES;
+extern const unsigned SSVEP_BACKWARD_PERIOD_FRAMES;
+extern const unsigned SSVEP_TURN_LEFT_PERIOD_FRAMES;
+extern const unsigned SSVEP_TURN_RIGHT_PERIOD_FRAMES;
+extern const SsvepTargetConfig SSVEP_TARGETS[4];
+extern const float SSVEP_REFERENCE_WIDTH_PX;
+extern const float SSVEP_REFERENCE_HEIGHT_PX;
+extern const float SSVEP_TARGET_SIZE_PX;
+extern const float SSVEP_PANEL_PADDING_PX;
+extern const float SSVEP_BORDER_WIDTH_PX;
+extern const float SSVEP_LABEL_OFFSET_PX;
+extern const float SSVEP_TEXT_LINE_HEIGHT_PX;
+extern const float SSVEP_FOOTER_BASELINE_PX;

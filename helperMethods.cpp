@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 
+#include <windows.h>
 #include "helperMethods.h"
 #include "Constants.h"
 #include <iostream>
@@ -118,3 +119,30 @@ GLuint maketex(const char* tfile,GLint xSize,GLint ySize) //returns tex. no.
 
 }
 
+
+DisplayTiming initializeDisplayTiming() {
+    DisplayTiming timing = {};
+    // Request one buffer swap per refresh. Drivers/compositors can override this;
+    // these software sequences still require photodiode validation under load.
+    typedef BOOL (WINAPI *SwapIntervalProc)(int);
+    const PROC swapAddress = wglGetProcAddress("wglSwapIntervalEXT");
+    const bool validSwapAddress = swapAddress && swapAddress != reinterpret_cast<PROC>(1)
+        && swapAddress != reinterpret_cast<PROC>(2) && swapAddress != reinterpret_cast<PROC>(3)
+        && swapAddress != reinterpret_cast<PROC>(-1);
+    auto swapInterval = validSwapAddress ? reinterpret_cast<SwapIntervalProc>(swapAddress) : nullptr;
+    timing.vsyncEnabled = swapInterval && swapInterval(1);
+    if (!timing.vsyncEnabled) {
+        std::cerr << "VSync unavailable: flicker paused. F1 enables unvalidated preview.\n";
+    } else {
+        std::cout << "VSync enabled: flickering targets enabled for the SSVEP experiment.\n";
+    }
+    MONITORINFOEX monitor = {};
+    monitor.cbSize = sizeof(monitor);
+    DEVMODE mode = {};
+    mode.dmSize = sizeof(mode);
+    if (GetMonitorInfo(MonitorFromWindow(GetActiveWindow(), MONITOR_DEFAULTTONEAREST), &monitor)
+        && EnumDisplaySettings(monitor.szDevice, ENUM_CURRENT_SETTINGS, &mode)
+        && mode.dmDisplayFrequency > 1)
+        timing.refreshHz = mode.dmDisplayFrequency;
+    return timing;
+}

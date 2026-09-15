@@ -2,23 +2,30 @@
 #include "helperMethods.h"
 #include "Constants.h"
 #include <GL/glut.h> // Assuming your OpenGL/GLUT headers are here
+#include <cstdio>
 
 using namespace std;
 
-std::function<void()> drawText(std::string text) {
-    // Capture the 'text' string by value into the lambda [text]
-    return [text]() {
-        int length = text.length();
-
-        // Assuming windowwidth() and windowheight() are globally accessible 
-        // or available in the scope where this eventually executes.
-        float x = (float)windowwidth() - 210.0f;
-        float y = (float)windowheight() - 250.0f;
-
-        glRasterPos2i(x, y);
-        for (int i = 0; i < length; i++) {
-            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, (int)text[i]);
+std::function<void()> drawText(std::string text, float x, float y,
+    void* font, TextAlignment alignment) {
+    return [=]() {
+        float left = x;
+        if (alignment == TextAlignment::Center) {
+            int width = 0;
+            for (unsigned char character : text)
+                width += glutBitmapWidth(font, character);
+            left -= width / 2.0f;
         }
+        glRasterPos2f(left, y);
+        for (unsigned char character : text)
+            glutBitmapCharacter(font, character);
+    };
+}
+
+std::function<void()> drawText(std::string text) {
+    return [text]() {
+        drawText(text, (float)windowwidth() - 210.0f,
+            (float)windowheight() - 250.0f, GLUT_BITMAP_HELVETICA_18)();
     };
 }
 
@@ -60,6 +67,7 @@ std::function<void()> draw_ortho_compass(float rot_x) {
 void draw_HUD(const std::function<void()>& drawUI) {
     // 1. Save all existing 3D attributes and server states
     glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glPushClientAttrib(GL_CLIENT_VERTEX_ARRAY_BIT);
 
     // 2. Disable EVERYTHING that could interfere with flat colors
     glDisable(GL_LIGHTING);
@@ -77,6 +85,7 @@ void draw_HUD(const std::function<void()>& drawUI) {
     glMatrixMode(GL_PROJECTION);
     glPushMatrix(); // Save your 3D perspective setup matrix
     glLoadIdentity(); // Reset it to clean slate
+    gluOrtho2D(0.0, (double)windowwidth(), 0.0, (double)windowheight());
 
     // 4. SWITCH TO THE MODELVIEW MATRIX
     glMatrixMode(GL_MODELVIEW);
@@ -84,7 +93,6 @@ void draw_HUD(const std::function<void()>& drawUI) {
     glLoadIdentity(); // Reset it to clean slate
 
     // Create a pixel-for-pixel flat 2D coordinate box matching the viewport
-    gluOrtho2D(0.0, (double)windowwidth(), 0.0, (double)windowheight());
 
     // 5. Draw the HUD
     drawUI();
@@ -102,4 +110,47 @@ void draw_HUD(const std::function<void()>& drawUI) {
 
     // Restore all pipeline properties (Lighting, textures, masks) exactly how they were
     glPopAttrib();
+    glPopClientAttrib();
+}
+
+namespace {
+void panel(float left, float bottom, float right, float top, float gray) {
+    glColor3f(gray, gray, gray);
+    glRectf(left, bottom, right, top);
+}
+void centeredLabel(float x, float y, const char* text) {
+    glColor3f(0.85f, 0.9f, 0.95f);
+    drawText(text, x, y, GLUT_BITMAP_HELVETICA_12, TextAlignment::Center)();
+}
+}
+
+void draw_ssvep_targets(unsigned long long frame, bool active, double refreshHz) {
+    draw_HUD([=]() {
+        const float w = (float)windowwidth(), h = (float)windowheight();
+        const float widthScale = w / SSVEP_REFERENCE_WIDTH_PX;
+        const float heightScale = h / SSVEP_REFERENCE_HEIGHT_PX;
+        const float scale = widthScale < heightScale ? widthScale : heightScale;
+        const float half = SSVEP_TARGET_SIZE_PX * scale / 2.0f;
+        // Bitmap fonts have fixed pixel sizes, so text spacing stays in pixels.
+        const float padding = SSVEP_PANEL_PADDING_PX;
+        const float border = SSVEP_BORDER_WIDTH_PX;
+        const float labelOffset = SSVEP_LABEL_OFFSET_PX;
+        const float frequencyOffset = labelOffset + SSVEP_TEXT_LINE_HEIGHT_PX;
+        const float panelBelow = frequencyOffset + padding;
+        for (const auto& target : SSVEP_TARGETS) {
+            const float x = target.x * w, y = target.y * h;
+            panel(x-half-padding, y-half-panelBelow, x+half+padding, y+half+padding, 0.08f);
+            panel(x-half-border, y-half-border, x+half+border, y+half+border, 0.4f);
+            // Odd periods have floor(period/2) bright frames (e.g. 2/5 duty).
+            const bool bright = frame % target.periodFrames < target.periodFrames / 2;
+            panel(x-half, y-half, x+half, y+half, active ? (bright ? 1.0f : 0.0f) : 0.25f);
+            centeredLabel(x, y-half-labelOffset, target.label);
+            char frequency[80];
+            if (!active) std::snprintf(frequency, sizeof(frequency), "PAUSED");
+            else if (refreshHz > 0) std::snprintf(frequency, sizeof(frequency), "nominal %.2f Hz", refreshHz / target.periodFrames);
+            else std::snprintf(frequency, sizeof(frequency), "%u frames/cycle", target.periodFrames);
+            centeredLabel(x, y-half-frequencyOffset, frequency);
+        }
+        centeredLabel(w * 0.5f, SSVEP_FOOTER_BASELINE_PX, "F1: pause/resume flicker | Optical timing not yet validated");
+    });
 }
