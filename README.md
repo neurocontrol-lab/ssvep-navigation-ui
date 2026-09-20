@@ -2,7 +2,7 @@
 
 A research project investigating EEG-based control of a 3D maze using steady-state visual evoked potentials (SSVEP) and canonical correlation analysis (CCA). The existing C++/OpenGL/FreeGLUT environment provides a testbed for evaluating neural command decoding and closed-loop navigation.
 
-**Current status:** manual navigation and four frame-sequenced visual targets are implemented. Optical timing validation, EEG acquisition integration, CCA decoding, and neural control remain pending; this repository does not yet provide a working EEG-controlled system.
+**Current status:** manual navigation, four frame-sequenced visual targets, and a BPW34/MG24 optical measurement tool are implemented. Optical validation of the maze targets, EEG acquisition integration, CCA decoding, and neural control remain pending; this repository does not yet provide a working EEG-controlled system.
 
 ## Research direction
 
@@ -54,6 +54,8 @@ These are the current manual controls; the planned BCI left/right commands will 
 
 ### Visual targets
 
+For optical frequency checks, use the [BPW34 + XIAO MG24 validation sketch and setup guide](firmware/photodiode_validation/README.md). It reads the photodiode on **D10**, records a buffered capture, reports frequency and timing statistics, and exports raw CSV data.
+
 <p align="center">
   <img src="resources/screenshots/flickering_targets.png" width="85%" alt="SSVEP navigation interface with four directional stimulus targets and the upper-right HUD">
 </p>
@@ -81,6 +83,14 @@ Provisional sequences (one sequence step per buffer swap). Assuming one swap per
 The named `SSVEP_*` settings and target table in `Constants.cpp` define frame periods, positions, reference resolution, target size, and spacing. Target dimensions are derived from the viewport at runtime; bitmap-label spacing stays in pixels. Odd periods have unequal bright/dark durations. Frequencies scale with display refresh rate; labels use the OS-reported rate, not an optical measurement. Driver overrides, variable refresh, missed refreshes, and compositor behavior can change actual timing. Use fixed refresh and validate every target with a photodiode while navigating before EEG experiments. These provisional frequencies are not a calibrated CCA configuration; assess harmonic overlap and decoding performance before selecting the final set.
 
 The initial stimulus is solid monochrome to simplify timing measurements. Colored or patterned stimuli require separate contrast and decoding validation; the stimulus does not inherit maze lighting or textures.
+
+## Optical measurement tool and validation status
+
+The [Arduino sketch and wiring guide](firmware/photodiode_validation/README.md) use a BPW34 photodiode, a load resistor, and the XIAO MG24's **D10** analog input. Each capture buffers 4,000 samples at a nominal 2 kHz (approximately 2 seconds, 24 kB of sample/timestamp storage), then reports frequency, period variation, ADC range, and sampling gaps. Commands: **`r`** records, **`d`** exports CSV, and **`h`** shows help.
+
+**Validation status:** firmware has been uploaded and exercised on hardware. End-to-end optical validation of the maze targets remains pending.
+
+Host-side tests cover synthetic target frequencies, weak/flat signals, clipping, and sampling gaps. These tests support the analysis implementation but do not validate the analog circuit or display output. Validation involves checking dark/steady-light response, inspecting captured waveforms, and measuring all four maze targets under navigation load.
 
 ## Background and demo
 
