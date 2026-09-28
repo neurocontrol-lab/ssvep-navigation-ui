@@ -2,7 +2,7 @@
 
 A research project investigating EEG-based control of a 3D maze using steady-state visual evoked potentials (SSVEP) and canonical correlation analysis (CCA). The existing C++/OpenGL/FreeGLUT environment provides a testbed for evaluating neural command decoding and closed-loop navigation.
 
-**Current status:** manual navigation and four frame-sequenced visual targets are implemented. Hardware acquisition and optical measurement tools live in the companion [ssvep-acquisition](https://github.com/satyam-aw/ssvep-acquisition) repository. Optical validation of the maze targets, EEG acquisition integration, CCA decoding, and neural control remain pending; this repository does not yet provide a working EEG-controlled system.
+**Current status:** manual navigation and four frame-sequenced visual targets are implemented. Hardware acquisition and optical measurement tools live in the companion [ssvep-acquisition](https://github.com/neurocontrol-lab/ssvep-acquisition) repository. Optical validation of the maze targets, EEG acquisition integration, CCA decoding, and neural control remain pending; this repository does not yet provide a working EEG-controlled system.
 
 ## Research direction
 
@@ -54,7 +54,7 @@ These are the current manual controls; the planned BCI left/right commands will 
 
 ### Visual targets
 
-For optical frequency checks, use the [BPW34 + XIAO MG24 validation sketch and setup guide](https://github.com/satyam-aw/ssvep-acquisition/blob/main/firmware/photodiode_validation/README.md). It reads the photodiode on **D10**, records a buffered capture, reports frequency and timing statistics, and exports raw CSV data.
+For optical frequency checks, use the [BPW34 + XIAO MG24 validation sketch and setup guide](https://github.com/neurocontrol-lab/ssvep-acquisition/blob/main/firmware/photodiode_validation/README.md). It reads the photodiode on **D10**, records a buffered capture, reports frequency and timing statistics, and exports raw CSV data.
 
 <p align="center">
   <img src="resources/screenshots/flickering_targets.png" width="85%" alt="SSVEP navigation interface with four directional stimulus targets and the upper-right HUD">
@@ -86,7 +86,7 @@ The initial stimulus is solid monochrome to simplify timing measurements. Colore
 
 ## Companion acquisition repository
 
-[ssvep-acquisition](https://github.com/satyam-aw/ssvep-acquisition) contains the MG24 firmware, BPW34 optical measurement tools, BioAmp diagnostics, Python CSV capture script, and their tests. Clone it alongside this repository; it is not required to build or run the navigation UI.
+[ssvep-acquisition](https://github.com/neurocontrol-lab/ssvep-acquisition) contains the MG24 firmware, BPW34 optical measurement tools, BioAmp diagnostics, Python CSV capture script, and their tests. Clone it alongside this repository; it is not required to build or run the navigation UI.
 
 Optical validation of all four targets under navigation load remains pending. See the acquisition repository for wiring, capture instructions, and measurement limitations.
 
