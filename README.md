@@ -26,7 +26,7 @@ Initial work will focus on:
 ## Branches
 
 - **`main`**: ongoing SSVEP–CCA research and integration, built on the existing navigation environment.
-- **`codex/opengl-game`**: preserved OpenGL game baseline before the research reorganization.
+- **`opengl-game`**: preserved OpenGL game baseline before the research reorganization.
 
 ## Existing navigation environment
 
@@ -92,7 +92,7 @@ Optical validation of all four targets under navigation load remains pending. Se
 
 ## Background and demo
 
-- **Portable Windows x86 baseline:** [Play_Game.zip](../../raw/refs/heads/codex/opengl-game/resources/Play_Game.zip) (launch using `Play_Game.bat`).
+- **Portable Windows x86 baseline:** [Play_Game.zip](../../raw/refs/heads/opengl-game/resources/Play_Game.zip) (launch using `Play_Game.bat`).
 - **Environment demo:** [Video](https://www.youtube.com/watch?v=9cJ7eTtbbqo).
 - **Original course assignment explanation:** [Video](https://www.youtube.com/watch?v=O8dUZq9Oty0).
 - **Original course assignment:** [HW1.pdf](resources/HW1.pdf).
