@@ -17,7 +17,7 @@ void draw_HUD(const std::function<void()>& drawUI);
 
 // Frame periods are provisional calibration settings, not validated EEG frequencies.
 void draw_ssvep_targets(unsigned long long frame, bool active, double refreshHz);
-void draw_navigation_hud(bool showRoute, RouteHint hint, DecoderState state,
+void draw_navigation_hud(bool showRoute, bool showAcceptedOverlay, RouteHint hint, DecoderState state,
                          const DecoderSample& sample, const char* steeringBlock,
                          bool armed, const std::string& lastSteeringEvent,
-                         const char* launchStatus);
+                         const char* launchStatus, bool keyboardOnly);

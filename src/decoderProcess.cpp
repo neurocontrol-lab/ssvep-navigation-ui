@@ -63,16 +63,26 @@ void DecoderProcess::stop() {
     process_ = nullptr;
 }
 
-bool DecoderProcess::start() {
+bool DecoderProcess::start(bool steering) {
     if (running()) return true;
     stop();
     failure_ = nullptr;
-    const auto folder = fullPath(L"..\\ssvep-decoding");
-    const auto profile = L"ssvep_decoding/profiles/decoder_4s_3h.json";
-    if (folder.empty() || !isFile(folder + L"\\ssvep_decoding\\__main__.py") ||
-        !isFile(folder + L"\\" + profile)) {
+    const auto configuredFolder = environment(L"SSVEP_DECODER_DIR");
+    const auto folder = fullPath(configuredFolder.empty() ? L"..\\ssvep-decoding" : configuredFolder);
+    const auto configuredProfile = environment(L"SSVEP_DECODER_PROFILE");
+    const auto profile = fullPath(configuredProfile.empty()
+        ? folder + L"\\ssvep_decoding\\profiles\\decoder_4s_3h.json" : configuredProfile);
+    if (folder.empty() || !isFile(folder + L"\\ssvep_decoding\\__main__.py") || !isFile(profile)) {
         failure_ = "Decoder folder or profile missing";
         return false;
+    }
+    auto stimulus = environment(L"SSVEP_STIMULUS_PROFILE");
+    if (!stimulus.empty()) {
+        stimulus = fullPath(stimulus);
+        if (!isFile(stimulus)) {
+            failure_ = "Stimulus profile missing";
+            return false;
+        }
     }
     auto python = environment(L"SSVEP_DECODER_PYTHON");
     if (!python.empty()) {
@@ -124,8 +134,10 @@ bool DecoderProcess::start() {
     BOOL launched = FALSE;
     if (initialized && UpdateProcThreadAttribute(startup.lpAttributeList, 0,
             PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherited, sizeof(inherited), nullptr, nullptr)) {
-        const auto command = quoted(python) + L" -u -m ssvep_decoding live --port " + quoted(port)
-            + L" --seconds 3600 --decoder " + quoted(profile) + L" --maze-control --stop-on-stdin";
+        auto command = quoted(python) + L" -u -m ssvep_decoding live --port " + quoted(port)
+            + L" --seconds 3600 --decoder " + quoted(profile)
+            + (steering ? L" --maze-control" : L" --maze-hud") + L" --stop-on-stdin";
+        if (!stimulus.empty()) command += L" --stimulus " + quoted(stimulus);
         std::vector<wchar_t> args(command.begin(), command.end());
         args.push_back(0);
         launched = CreateProcessW(python.c_str(), args.data(), nullptr, nullptr, TRUE,

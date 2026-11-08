@@ -15,48 +15,57 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="openmaze.cpp">
+    <ClCompile Include="..\..\src\openmaze.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mazeParser.cpp">
+    <ClCompile Include="..\..\src\mazeParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Constants.cpp">
+    <ClCompile Include="..\..\src\Constants.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="drawHUD.cpp">
+    <ClCompile Include="..\..\src\drawHUD.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="decoderLink.cpp">
+    <ClCompile Include="..\..\src\decoderLink.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="decoderProcess.cpp">
+    <ClCompile Include="..\..\src\decoderProcess.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mazeRoute.cpp">
+    <ClCompile Include="..\..\src\mazeRoute.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="helperMethods.cpp">
+    <ClCompile Include="..\..\src\helperMethods.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="textures.cpp">
+    <ClCompile Include="..\..\src\textures.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="mazeParser.h">
+    <ClInclude Include="..\..\src\mazeParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Constants.h">
+    <ClInclude Include="..\..\src\Constants.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="decoderLink.h">
+    <ClInclude Include="..\..\src\decoderLink.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="decoderProcess.h">
+    <ClInclude Include="..\..\src\decoderProcess.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="mazeRoute.h">
+    <ClInclude Include="..\..\src\mazeRoute.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\drawHUD.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\helperMethods.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\textures.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

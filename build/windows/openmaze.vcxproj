@@ -70,6 +70,14 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <LocalDebuggerWorkingDirectory>$(MSBuildProjectDirectory)\..\..</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalLibraryDirectories>$(MSBuildProjectDirectory)\..\..\src\vendor\windows;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
@@ -140,22 +148,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Constants.cpp" />
-    <ClCompile Include="drawHUD.cpp" />
-    <ClCompile Include="decoderLink.cpp" />
-    <ClCompile Include="decoderProcess.cpp" />
-    <ClCompile Include="mazeRoute.cpp" />
-    <ClCompile Include="helperMethods.cpp" />
-    <ClCompile Include="mazeParser.cpp" />
-    <ClCompile Include="openmaze.cpp" />
-    <ClCompile Include="textures.cpp" />
+    <ClCompile Include="..\..\src\Constants.cpp" />
+    <ClCompile Include="..\..\src\drawHUD.cpp" />
+    <ClCompile Include="..\..\src\decoderLink.cpp" />
+    <ClCompile Include="..\..\src\decoderProcess.cpp" />
+    <ClCompile Include="..\..\src\mazeRoute.cpp" />
+    <ClCompile Include="..\..\src\helperMethods.cpp" />
+    <ClCompile Include="..\..\src\mazeParser.cpp" />
+    <ClCompile Include="..\..\src\openmaze.cpp" />
+    <ClCompile Include="..\..\src\textures.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Constants.h" />
-    <ClInclude Include="decoderLink.h" />
-    <ClInclude Include="decoderProcess.h" />
-    <ClInclude Include="mazeRoute.h" />
-    <ClInclude Include="mazeParser.h" />
+    <ClInclude Include="..\..\src\Constants.h" />
+    <ClInclude Include="..\..\src\decoderLink.h" />
+    <ClInclude Include="..\..\src\decoderProcess.h" />
+    <ClInclude Include="..\..\src\mazeRoute.h" />
+    <ClInclude Include="..\..\src\mazeParser.h" />
+    <ClInclude Include="..\..\src\drawHUD.h" />
+    <ClInclude Include="..\..\src\helperMethods.h" />
+    <ClInclude Include="..\..\src\textures.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

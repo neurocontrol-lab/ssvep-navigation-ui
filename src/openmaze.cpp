@@ -25,6 +25,7 @@
 #include "textures.h"
 #include <sstream>
 #include <functional>
+#include <iostream>
 #include <string>
 #include <ctime>
 
@@ -42,8 +43,12 @@ bool flickerEnabled = true;
 unsigned long long stimulusFrame = 0;
 double displayRefreshHz = 0.0;
 static bool synchronizedFlicker = false;
-static bool showRouteHint = true, decoderArmed = false;
+static bool showRouteHint = true, showAcceptedCommand = true, decoderArmed = false;
 static bool armOnFirstConnection = true;
+enum class DecoderMode { Automatic, Managed, Manual, Attach, KeyboardOnly };
+static DecoderMode decoderMode = DecoderMode::Automatic;
+static bool monitorOnly = false;
+static constexpr double frequencyToleranceHz = 0.10;
 static HWND mazeWindow = nullptr;
 static std::int64_t armedAt = 0, pulseUntil = 0;
 static MazeAction decoderAction = MazeAction::None;
@@ -58,23 +63,33 @@ static bool decoderDisconnected(DecoderState state) {
 }
 
 static void startDefaultDecoder(int) {
-    if (armOnFirstConnection && decoderDisconnected(decoderLink.state(decoderClockMs())))
-        decoderProcess.start();
+    if (decoderDisconnected(decoderLink.state(decoderClockMs())))
+        decoderProcess.start(!monitorOnly);
+}
+
+static void printStimulusInfo() {
+    std::cout << "{\"periods\":{\"forward\":" << SSVEP_TARGETS[0].periodFrames
+              << ",\"backward\":" << SSVEP_TARGETS[1].periodFrames
+              << ",\"turn_left\":" << SSVEP_TARGETS[2].periodFrames
+              << ",\"turn_right\":" << SSVEP_TARGETS[3].periodFrames
+              << "},\"tolerance_hz\":" << frequencyToleranceHz << "}\n";
 }
 
 static bool decoderProfileMatches() {
     if (displayRefreshHz <= 0) return false;
     for (int i = 0; i < 4; ++i) {
         if (std::abs(decoderLink.sample().frequencies[i] -
-            displayRefreshHz / SSVEP_TARGETS[i].periodFrames) > 0.10) return false;
+            displayRefreshHz / SSVEP_TARGETS[i].periodFrames) > frequencyToleranceHz) return false;
     }
     return true;
 }
 
 static const char* decoderBlock(std::int64_t now) {
     if (decoderLink.state(now) != DecoderState::Scored) return "Waiting for valid EEG";
+    if (decoderMode == DecoderMode::Managed && !decoderProcess.running())
+        return "External decoder detected";
     if (!decoderProfileMatches()) return "Frequency profile mismatch";
-    if (!decoderLink.sample().control) return "Monitor only";
+    if (monitorOnly || !decoderLink.sample().control) return "Monitor only";
     if (!synchronizedFlicker) return "VSync unavailable";
     if (!flickerEnabled) return "Flicker paused";
     if (gameOver || youWon) return "Game ended";
@@ -87,6 +102,7 @@ static void showSteeringEvent(MazeAction action, const char* outcome) {
 }
 
 static MazeAction pollDecoder(std::int64_t now) {
+    if (decoderMode == DecoderMode::KeyboardOnly) return MazeAction::None;
     const bool updated = decoderLink.poll(now);
     const auto& sample = decoderLink.sample();
     const bool emitted = updated && sample.control && sample.emit;
@@ -418,9 +434,9 @@ void drawscene()
  draw_ssvep_targets(stimulusFrame, stimulusActive, displayRefreshHz);
  if (!gameOver && !youWon) {
      const auto hint = mazeRoute.hint(x_at, y_at, rot_x, MAZE_EXTREME_LEFT, MAZE_EXTREME_TOP, FULL_CUBE);
-     draw_navigation_hud(showRouteHint, hint, decoderLink.state(nowMs),
+     draw_navigation_hud(showRouteHint, showAcceptedCommand, hint, decoderLink.state(nowMs),
                          decoderLink.sample(), decoderBlock(nowMs), decoderArmed, lastSteeringEvent,
-                         decoderProcess.status());
+                         decoderProcess.status(), decoderMode == DecoderMode::KeyboardOnly);
  }
 
  glutSwapBuffers();
@@ -480,14 +496,15 @@ void arrows(int key, int x, int y)
     }
     if (key == GLUT_KEY_F2 && !specialKeys[GLUT_KEY_F2])
         showRouteHint = !showRouteHint;
-    if (key == GLUT_KEY_F3 && !specialKeys[GLUT_KEY_F3]) {
+    if (key == GLUT_KEY_F3 && !specialKeys[GLUT_KEY_F3] && decoderMode != DecoderMode::KeyboardOnly) {
         const auto now = decoderClockMs();
         const auto state = decoderLink.state(now);
-        if (decoderDisconnected(state) && !decoderProcess.running()) {
-            armOnFirstConnection = decoderProcess.start();
+        if (decoderMode != DecoderMode::Attach && decoderDisconnected(state) && !decoderProcess.running()) {
+            const bool started = decoderProcess.start(!monitorOnly);
+            armOnFirstConnection = started && !monitorOnly;
             decoderArmed = false;
         } else if (decoderProcess.running() && state != DecoderState::Scored) {
-            armOnFirstConnection = !armOnFirstConnection;
+            armOnFirstConnection = !monitorOnly && !armOnFirstConnection;
             decoderArmed = false;
         } else {
             armOnFirstConnection = false;
@@ -509,10 +526,23 @@ int main(int argc, char** argv)
     bool fullscreen = true;
     int remaining = 1;
     for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--manual") armOnFirstConnection = false;
-        else if (std::string(argv[i]) == "--windowed") fullscreen = false;
+        const std::string option = argv[i];
+        if (option == "--stimulus-info") {
+            printStimulusInfo();
+            return 0;
+        }
+        if (option == "--manual") decoderMode = DecoderMode::Manual;
+        else if (option == "--start-decoder") decoderMode = DecoderMode::Managed;
+        else if (option == "--attach-decoder") decoderMode = DecoderMode::Attach;
+        else if (option == "--keyboard-only") decoderMode = DecoderMode::KeyboardOnly;
+        else if (option == "--monitor-only") monitorOnly = true;
+        else if (option == "--no-route-hint") showRouteHint = false;
+        else if (option == "--no-accepted-command") showAcceptedCommand = false;
+        else if (option == "--windowed") fullscreen = false;
         else argv[remaining++] = argv[i];
     }
+    const bool autoStartDecoder = decoderMode == DecoderMode::Automatic || decoderMode == DecoderMode::Managed;
+    armOnFirstConnection = autoStartDecoder && !monitorOnly;
     argc = remaining;
     argv[argc] = nullptr;
     glutInit(&argc, argv);
@@ -555,10 +585,12 @@ int main(int argc, char** argv)
 
     parseMaze(XSIZE, YSIZE, "maze1.txt");
     mazeRoute.build(WALL_TEXTURES, XSIZE, YSIZE);
-    if (!decoderLink.open())
-        std::cerr << "Decoder link unavailable on localhost UDP port 46081.\n";
-    else if (armOnFirstConnection)
-        glutTimerFunc(500, startDefaultDecoder, 0);
+    if (decoderMode != DecoderMode::KeyboardOnly) {
+        if (!decoderLink.open())
+            std::cerr << "Decoder link unavailable on localhost UDP port 46081.\n";
+        else if (autoStartDecoder)
+            glutTimerFunc(500, startDefaultDecoder, 0);
+    }
 
 
     // --- START BACKGROUND MUSIC HERE ---

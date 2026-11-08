@@ -160,10 +160,10 @@ void draw_ssvep_targets(unsigned long long frame, bool active, double refreshHz)
     });
 }
 
-void draw_navigation_hud(bool showRoute, RouteHint hint, DecoderState state,
+void draw_navigation_hud(bool showRoute, bool showAcceptedOverlay, RouteHint hint, DecoderState state,
                          const DecoderSample& sample, const char* steeringBlock,
                          bool armed, const std::string& lastSteeringEvent,
-                         const char* launchStatus) {
+                         const char* launchStatus, bool keyboardOnly) {
     draw_HUD([&]() {
         constexpr float inset = 14, line = 19;
         const float top = static_cast<float>(windowheight()) - inset;
@@ -189,6 +189,7 @@ void draw_navigation_hud(bool showRoute, RouteHint hint, DecoderState state,
         }
         if (launchStatus && (state == DecoderState::Waiting ||
             state == DecoderState::Stopped || state == DecoderState::Stale)) status = launchStatus;
+        if (keyboardOnly) status = "Keyboard only";
         text(std::string("Decoder: ") + status);
         if (state == DecoderState::Scored) {
             char score[96];
@@ -199,10 +200,10 @@ void draw_navigation_hud(bool showRoute, RouteHint hint, DecoderState state,
             text("Top: --");
         }
         text("Last pulse: " + lastSteeringEvent);
-        text("F2: route hint | F3: EEG control");
+        text(keyboardOnly ? "F2: route hint" : "F2: route hint | F3: EEG control");
 
-        const bool showAccepted = state == DecoderState::Scored ||
-            state == DecoderState::Warming || state == DecoderState::Invalid;
+        const bool showAccepted = showAcceptedOverlay && (state == DecoderState::Scored ||
+            state == DecoderState::Warming || state == DecoderState::Invalid);
         if (showRoute || showAccepted) {
             const char* direction = hint == RouteHint::Forward ? "Go forward" :
                 hint == RouteHint::Left ? "Turn left" :

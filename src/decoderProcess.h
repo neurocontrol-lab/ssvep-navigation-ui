@@ -10,7 +10,7 @@ public:
     ~DecoderProcess();
     DecoderProcess(const DecoderProcess&) = delete;
     DecoderProcess& operator=(const DecoderProcess&) = delete;
-    bool start();
+    bool start(bool steering);
     bool running() const;
     void stop();
     const char* status() const;
