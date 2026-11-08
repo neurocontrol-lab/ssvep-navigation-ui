@@ -2,6 +2,8 @@
 
 #include <string>     // Required for std::string
 #include <functional> // Required for std::function
+#include "mazeRoute.h"
+#include "decoderLink.h"
 
 // Explicitly use std::function<void()> instead of auto
 std::function<void()> drawText(std::string text);
@@ -15,3 +17,7 @@ void draw_HUD(const std::function<void()>& drawUI);
 
 // Frame periods are provisional calibration settings, not validated EEG frequencies.
 void draw_ssvep_targets(unsigned long long frame, bool active, double refreshHz);
+void draw_navigation_hud(bool showRoute, RouteHint hint, DecoderState state,
+                         const DecoderSample& sample, const char* steeringBlock,
+                         bool armed, const std::string& lastSteeringEvent,
+                         const char* launchStatus);

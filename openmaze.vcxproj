@@ -142,6 +142,9 @@
   <ItemGroup>
     <ClCompile Include="Constants.cpp" />
     <ClCompile Include="drawHUD.cpp" />
+    <ClCompile Include="decoderLink.cpp" />
+    <ClCompile Include="decoderProcess.cpp" />
+    <ClCompile Include="mazeRoute.cpp" />
     <ClCompile Include="helperMethods.cpp" />
     <ClCompile Include="mazeParser.cpp" />
     <ClCompile Include="openmaze.cpp" />
@@ -149,6 +152,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Constants.h" />
+    <ClInclude Include="decoderLink.h" />
+    <ClInclude Include="decoderProcess.h" />
+    <ClInclude Include="mazeRoute.h" />
     <ClInclude Include="mazeParser.h" />
   </ItemGroup>
   <ItemGroup>

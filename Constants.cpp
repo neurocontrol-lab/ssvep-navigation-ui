@@ -63,8 +63,8 @@ const float SSVEP_REFERENCE_WIDTH_PX = 1920.0f;
 const float SSVEP_REFERENCE_HEIGHT_PX = 1080.0f;
 const float SSVEP_TARGET_SIZE_PX = 140.0f;
 // Fixed-pixel spacing matches GLUT's non-scaling bitmap font.
-const float SSVEP_PANEL_PADDING_PX = 8.0f;
-const float SSVEP_BORDER_WIDTH_PX = 2.0f;
-const float SSVEP_LABEL_OFFSET_PX = 16.0f;
+const float SSVEP_PANEL_PADDING_PX = 16.0f;
+const float SSVEP_BORDER_WIDTH_PX = 12.0f;
+const float SSVEP_LABEL_OFFSET_PX = 28.0f;
 const float SSVEP_TEXT_LINE_HEIGHT_PX = 15.0f;
 const float SSVEP_FOOTER_BASELINE_PX = 12.0f;

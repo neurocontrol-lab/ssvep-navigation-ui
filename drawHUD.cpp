@@ -137,8 +137,13 @@ void draw_ssvep_targets(unsigned long long frame, bool active, double refreshHz)
         const float labelOffset = SSVEP_LABEL_OFFSET_PX;
         const float frequencyOffset = labelOffset + SSVEP_TEXT_LINE_HEIGHT_PX;
         const float panelBelow = frequencyOffset + padding;
+        const float minY = SSVEP_FOOTER_BASELINE_PX + SSVEP_TEXT_LINE_HEIGHT_PX + half + panelBelow;
+        const float maxY = h - half - padding;
         for (const auto& target : SSVEP_TARGETS) {
-            const float x = target.x * w, y = target.y * h;
+            const float x = target.x * w;
+            float y = target.y * h;
+            if (y < minY) y = minY;
+            if (y > maxY) y = maxY;
             panel(x-half-padding, y-half-panelBelow, x+half+padding, y+half+padding, 0.08f);
             panel(x-half-border, y-half-border, x+half+border, y+half+border, 0.4f);
             // Odd periods have floor(period/2) bright frames (e.g. 2/5 duty).
@@ -152,5 +157,66 @@ void draw_ssvep_targets(unsigned long long frame, bool active, double refreshHz)
             centeredLabel(x, y-half-frequencyOffset, frequency);
         }
         centeredLabel(w * 0.5f, SSVEP_FOOTER_BASELINE_PX, "F1: pause/resume flicker | Optical timing not yet validated");
+    });
+}
+
+void draw_navigation_hud(bool showRoute, RouteHint hint, DecoderState state,
+                         const DecoderSample& sample, const char* steeringBlock,
+                         bool armed, const std::string& lastSteeringEvent,
+                         const char* launchStatus) {
+    draw_HUD([&]() {
+        constexpr float inset = 14, line = 19;
+        const float top = static_cast<float>(windowheight()) - inset;
+        float y = top - line;
+        panel(inset, top - 4 * line, inset + 305, top, 0.08f);
+        glColor3f(0.85f, 0.9f, 0.95f);
+        auto text = [&](const std::string& value) {
+            drawText(value, inset + 9, y, GLUT_BITMAP_HELVETICA_12)();
+            y -= line;
+        };
+        const char* status = "Waiting for decoder";
+        switch (state) {
+        case DecoderState::Warming: status = "Collecting first EEG window"; break;
+        case DecoderState::Scored:
+            status = steeringBlock ? steeringBlock :
+                armed ? "EEG steering active" : "EEG steering paused (F3)";
+            break;
+        case DecoderState::Invalid: status = "EEG window rejected"; break;
+        case DecoderState::Stopped: status = "Decoder stopped"; break;
+        case DecoderState::Stale: status = "Decoder signal expired"; break;
+        case DecoderState::Unavailable: status = "Decoder link unavailable"; break;
+        default: break;
+        }
+        if (launchStatus && (state == DecoderState::Waiting ||
+            state == DecoderState::Stopped || state == DecoderState::Stale)) status = launchStatus;
+        text(std::string("Decoder: ") + status);
+        if (state == DecoderState::Scored) {
+            char score[96];
+            std::snprintf(score, sizeof(score), "Top: %s %.3f | margin %.3f",
+                          actionLabel(sample.winner), sample.score, sample.margin);
+            text(score);
+        } else {
+            text("Top: --");
+        }
+        text("Last pulse: " + lastSteeringEvent);
+        text("F2: route hint | F3: EEG control");
+
+        const bool showAccepted = state == DecoderState::Scored ||
+            state == DecoderState::Warming || state == DecoderState::Invalid;
+        if (showRoute || showAccepted) {
+            const char* direction = hint == RouteHint::Forward ? "Go forward" :
+                hint == RouteHint::Left ? "Turn left" :
+                hint == RouteHint::Right ? "Turn right" : "No route available";
+            const float cx = windowwidth() * 0.5f, cy = windowheight() * 0.5f;
+            panel(cx - 110, cy - (showRoute && showAccepted ? 36 : 17),
+                  cx + 110, cy + 17, 0.08f);
+            glColor3f(0.85f, 0.9f, 0.95f);
+            if (showRoute)
+                drawText(direction, cx, cy - 6, GLUT_BITMAP_HELVETICA_18, TextAlignment::Center)();
+            if (showAccepted)
+                drawText(std::string("Accepted: ") +
+                         (state == DecoderState::Scored ? actionLabel(sample.accepted) : "--"),
+                         cx, cy - (showRoute ? 25 : 6), GLUT_BITMAP_HELVETICA_12, TextAlignment::Center)();
+        }
     });
 }

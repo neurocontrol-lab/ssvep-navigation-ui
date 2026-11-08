@@ -19,6 +19,9 @@
 #include "mazeParser.h"
 #include "helperMethods.h"
 #include "drawHUD.h"
+#include "mazeRoute.h"
+#include "decoderLink.h"
+#include "decoderProcess.h"
 #include "textures.h"
 #include <sstream>
 #include <functional>
@@ -38,6 +41,84 @@ bool specialKeys[256] = { false };
 bool flickerEnabled = true;
 unsigned long long stimulusFrame = 0;
 double displayRefreshHz = 0.0;
+static bool synchronizedFlicker = false;
+static bool showRouteHint = true, decoderArmed = false;
+static bool armOnFirstConnection = true;
+static HWND mazeWindow = nullptr;
+static std::int64_t armedAt = 0, pulseUntil = 0;
+static MazeAction decoderAction = MazeAction::None;
+static bool pulseApplied = false;
+static std::string lastSteeringEvent = "--";
+static MazeRoute mazeRoute;
+static DecoderLink decoderLink;
+static DecoderProcess decoderProcess;
+
+static bool decoderDisconnected(DecoderState state) {
+    return state == DecoderState::Waiting || state == DecoderState::Stopped || state == DecoderState::Stale;
+}
+
+static void startDefaultDecoder(int) {
+    if (armOnFirstConnection && decoderDisconnected(decoderLink.state(decoderClockMs())))
+        decoderProcess.start();
+}
+
+static bool decoderProfileMatches() {
+    if (displayRefreshHz <= 0) return false;
+    for (int i = 0; i < 4; ++i) {
+        if (std::abs(decoderLink.sample().frequencies[i] -
+            displayRefreshHz / SSVEP_TARGETS[i].periodFrames) > 0.10) return false;
+    }
+    return true;
+}
+
+static const char* decoderBlock(std::int64_t now) {
+    if (decoderLink.state(now) != DecoderState::Scored) return "Waiting for valid EEG";
+    if (!decoderProfileMatches()) return "Frequency profile mismatch";
+    if (!decoderLink.sample().control) return "Monitor only";
+    if (!synchronizedFlicker) return "VSync unavailable";
+    if (!flickerEnabled) return "Flicker paused";
+    if (gameOver || youWon) return "Game ended";
+    if (!mazeWindow || GetForegroundWindow() != mazeWindow) return "Focus the maze window";
+    return nullptr;
+}
+
+static void showSteeringEvent(MazeAction action, const char* outcome) {
+    lastSteeringEvent = std::string(actionLabel(action)) + ": " + outcome;
+}
+
+static MazeAction pollDecoder(std::int64_t now) {
+    const bool updated = decoderLink.poll(now);
+    const auto& sample = decoderLink.sample();
+    const bool emitted = updated && sample.control && sample.emit;
+    const char* blocked = decoderBlock(now);
+    if (armOnFirstConnection && !blocked) {
+        armOnFirstConnection = false;
+        decoderArmed = true;
+        armedAt = now;
+        // Wait for a new decision rather than acting on the packet that armed us.
+        if (emitted) showSteeringEvent(sample.accepted, "before steering armed");
+        return MazeAction::None;
+    }
+    if (!decoderArmed || blocked) {
+        if (emitted) showSteeringEvent(sample.accepted, blocked ? blocked : "steering paused");
+        decoderArmed = false;
+        decoderAction = MazeAction::None;
+        return decoderAction;
+    }
+    if (updated && sample.accepted != decoderAction) decoderAction = MazeAction::None;
+    if (emitted) {
+        if (sample.sentMs > armedAt && now - sample.sentMs <= 250) {
+            decoderAction = sample.accepted;
+            pulseUntil = now + 120;
+            pulseApplied = false;
+            showSteeringEvent(decoderAction, "pulse received");
+        } else {
+            showSteeringEvent(sample.accepted, "old pulse skipped");
+        }
+    }
+    if (now >= pulseUntil) decoderAction = MazeAction::None;
+    return decoderAction;
+}
 
 // Jump configurations (Adjust these values to change jump feel)
 const float GRAVITY = -28.0f;       // Acceleration pulling you down
@@ -64,6 +145,17 @@ static GLint xin = 0, yin = 0;
 static GLfloat camera_y = START_CAMERA_Y;
 static GLfloat rot_y = -M_PI_2;
 
+void resizer(GLint width, GLint height)
+{
+    if (width <= 0 || height <= 0) return;
+    glViewport(0, 0, width, height);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(VIEW_FIELD, static_cast<double>(width) / height, NEAR_Z, FAR_Z);
+    glMatrixMode(GL_MODELVIEW);
+    CONTROLLER_PLAY = static_cast<GLint>((width < height ? width : height) / 2.3f);
+}
+
 //App-level "init" function
 void initgl(GLint width, GLint height) 
 {
@@ -72,15 +164,7 @@ void initgl(GLint width, GLint height)
  glEnable(GL_DEPTH_TEST);
  glFrontFace(GL_CCW);
  glShadeModel(GL_SMOOTH); 
- glMatrixMode(GL_PROJECTION);
- gluPerspective(VIEW_FIELD,(GLfloat)width/(GLfloat)height,NEAR_Z,FAR_Z); 
- glMatrixMode(GL_MODELVIEW);
-}
-
-/* The function called when our window is resized (not supported with our textur. sys.)*/
-void resizer(GLint width, GLint height)
-{ 
- if(width!=windowwidth() || height!=windowheight()) exit(0); 
+ resizer(width, height);
 }
 
 
@@ -181,7 +265,7 @@ void move_relative(GLfloat forward_amt, GLfloat strafe_amt)
     }
 }
 
-void update_movement()
+void update_movement(MazeAction action)
 {
     // Calculate Delta Time
     int timeSinceStart = glutGet(GLUT_ELAPSED_TIME);
@@ -213,18 +297,34 @@ void update_movement()
     float forward_amt = 0.0f;
     float strafe_amt = 0.0f;
 
-    if (keys['w'] || keys['W'] || specialKeys[GLUT_KEY_UP])    forward_amt += current_walk_speed;
-    if (keys['s'] || keys['S'] || specialKeys[GLUT_KEY_DOWN])  forward_amt -= current_reverse_speed;
+    const bool manualForward = keys['w'] || keys['W'] || specialKeys[GLUT_KEY_UP];
+    const bool manualBackward = keys['s'] || keys['S'] || specialKeys[GLUT_KEY_DOWN];
+    if (manualForward || manualBackward || keys['a'] || keys['A'] ||
+        keys['d'] || keys['D'] || specialKeys[GLUT_KEY_LEFT] || specialKeys[GLUT_KEY_RIGHT]) {
+        if (action != MazeAction::None) showSteeringEvent(action, "manual override");
+        action = decoderAction = MazeAction::None;
+    }
+    if (manualForward || action == MazeAction::Forward) forward_amt += current_walk_speed;
+    if (manualBackward || action == MazeAction::Backward) forward_amt -= current_reverse_speed;
     if (keys['a'] || keys['A'])                                strafe_amt -= current_walk_speed;
     if (keys['d'] || keys['D'])                                strafe_amt += current_walk_speed;
 
+    const GLfloat priorX = x_at, priorY = y_at, priorYaw = rot_x;
     if (forward_amt != 0.0f || strafe_amt != 0.0f) {
         move_relative(forward_amt, strafe_amt);
     }
 
     if (!gameOver && !youWon) {
-        if (specialKeys[GLUT_KEY_RIGHT]) rot_x += current_turn_speed;
-        if (specialKeys[GLUT_KEY_LEFT])  rot_x -= current_turn_speed;
+        if (specialKeys[GLUT_KEY_RIGHT] || action == MazeAction::Right) rot_x += current_turn_speed;
+        if (specialKeys[GLUT_KEY_LEFT] || action == MazeAction::Left) rot_x -= current_turn_speed;
+    }
+    if (action != MazeAction::None && deltaTime > 0 && !pulseApplied) {
+        const bool turning = action == MazeAction::Left || action == MazeAction::Right;
+        const double advance = (x_at - priorX) * std::cos(priorYaw)
+                             + (y_at - priorY) * std::sin(priorYaw);
+        pulseApplied = turning ? rot_x != priorYaw :
+                       action == MazeAction::Forward ? advance > 0.0001 : advance < -0.0001;
+        showSteeringEvent(action, pulseApplied ? "applied" : "no movement (wall)");
     }
 }
 
@@ -251,7 +351,6 @@ void drawscene()
   gover_tex = maketex(GOVER_FILE, 800, 512);
   ywon_tex = maketex(YWON_FILE, 800, 512);
   grnd_tex=walls[textureNums-1];
-  CONTROLLER_PLAY = min(windowwidth(), windowheight())/2.3f;
   x_at = X_INIT;
   y_at = Y_INIT;
  }
@@ -270,7 +369,8 @@ void drawscene()
  
  glLoadIdentity(); // Make sure we're no longer rotated.
 
- update_movement(); // Calculate smooth positions right before drawing
+ const auto nowMs = decoderClockMs();
+ update_movement(pollDecoder(nowMs));
 
  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -316,6 +416,12 @@ void drawscene()
  draw_HUD(draw_ortho_compass(rot_x));
  const bool stimulusActive = flickerEnabled && !gameOver && !youWon;
  draw_ssvep_targets(stimulusFrame, stimulusActive, displayRefreshHz);
+ if (!gameOver && !youWon) {
+     const auto hint = mazeRoute.hint(x_at, y_at, rot_x, MAZE_EXTREME_LEFT, MAZE_EXTREME_TOP, FULL_CUBE);
+     draw_navigation_hud(showRouteHint, hint, decoderLink.state(nowMs),
+                         decoderLink.sample(), decoderBlock(nowMs), decoderArmed, lastSteeringEvent,
+                         decoderProcess.status());
+ }
 
  glutSwapBuffers();
  if (stimulusActive) ++stimulusFrame;
@@ -349,7 +455,7 @@ void mouse(int x, int y)
 // --- NORMAL KEYS ---
 void keypress(unsigned char key, int x, int y)
 {
-    if (key == ESCAPE) exit(0);
+    if (key == ESCAPE) { glutLeaveMainLoop(); return; }
 
     // Trigger jump if Spacebar is pressed and player is currently on the ground
     if (key == ' ' && !is_jumping && !gameOver && !youWon) {
@@ -372,6 +478,24 @@ void arrows(int key, int x, int y)
         flickerEnabled = !flickerEnabled;
         stimulusFrame = 0;
     }
+    if (key == GLUT_KEY_F2 && !specialKeys[GLUT_KEY_F2])
+        showRouteHint = !showRouteHint;
+    if (key == GLUT_KEY_F3 && !specialKeys[GLUT_KEY_F3]) {
+        const auto now = decoderClockMs();
+        const auto state = decoderLink.state(now);
+        if (decoderDisconnected(state) && !decoderProcess.running()) {
+            armOnFirstConnection = decoderProcess.start();
+            decoderArmed = false;
+        } else if (decoderProcess.running() && state != DecoderState::Scored) {
+            armOnFirstConnection = !armOnFirstConnection;
+            decoderArmed = false;
+        } else {
+            armOnFirstConnection = false;
+            decoderArmed = !decoderArmed && !decoderBlock(now);
+        }
+        decoderAction = MazeAction::None;
+        armedAt = now;
+    }
     if (key >= 0 && key < 256) specialKeys[key] = true;
 }
 
@@ -382,6 +506,15 @@ void arrows_up(int key, int x, int y)
 
 int main(int argc, char** argv)
 {
+    bool fullscreen = true;
+    int remaining = 1;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--manual") armOnFirstConnection = false;
+        else if (std::string(argv[i]) == "--windowed") fullscreen = false;
+        else argv[remaining++] = argv[i];
+    }
+    argc = remaining;
+    argv[argc] = nullptr;
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
     glutInitWindowSize(windowwidth(), windowheight());
@@ -391,9 +524,13 @@ int main(int argc, char** argv)
 
     // FIXED: You must create the window BEFORE registering callbacks or setting up GL
     int window = glutCreateWindow("SSVEP Navigation UI");
+    if (fullscreen) glutFullScreen();
+    mazeWindow = WindowFromDC(wglGetCurrentDC());
+    if (!mazeWindow) mazeWindow = GetActiveWindow();
     const DisplayTiming timing = initializeDisplayTiming();
     displayRefreshHz = timing.refreshHz;
     flickerEnabled = timing.vsyncEnabled;
+    synchronizedFlicker = timing.vsyncEnabled;
     glutIgnoreKeyRepeat(1);
 
     glutDisplayFunc(drawscene);
@@ -417,6 +554,11 @@ int main(int argc, char** argv)
     glutWarpPointer(windowwidth() / 2, windowheight() / 2);
 
     parseMaze(XSIZE, YSIZE, "maze1.txt");
+    mazeRoute.build(WALL_TEXTURES, XSIZE, YSIZE);
+    if (!decoderLink.open())
+        std::cerr << "Decoder link unavailable on localhost UDP port 46081.\n";
+    else if (armOnFirstConnection)
+        glutTimerFunc(500, startDefaultDecoder, 0);
 
 
     // --- START BACKGROUND MUSIC HERE ---
@@ -426,6 +568,7 @@ int main(int argc, char** argv)
     PlaySound(TEXT("resources/wav/background_music.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
 
     glutMainLoop();
+    decoderProcess.stop();
 
     return 0;
 }

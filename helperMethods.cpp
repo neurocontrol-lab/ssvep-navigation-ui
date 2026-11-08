@@ -12,16 +12,16 @@ using namespace std;
 
 GLint windowwidth()
 {
- static int ret=0;
- if(!ret)ret=glutGet(GLUT_SCREEN_WIDTH)-WINDOW_MARGIN;
- return ret;
+    const int width = glutGetWindow() ? glutGet(GLUT_WINDOW_WIDTH)
+                                    : glutGet(GLUT_SCREEN_WIDTH) - WINDOW_MARGIN;
+    return width > 0 ? width : 1;
 }
 
 GLint windowheight()
 {
- static int ret=0;
- if(!ret)ret=glutGet(GLUT_SCREEN_HEIGHT)-WINDOW_MARGIN;
- return ret;
+    const int height = glutGetWindow() ? glutGet(GLUT_WINDOW_HEIGHT)
+                                     : glutGet(GLUT_SCREEN_HEIGHT) - WINDOW_MARGIN;
+    return height > 0 ? height : 1;
 }
 
 string timeLeft(const std::function<void(int,int,int,int)>& func, clock_t endTime) {
@@ -140,7 +140,8 @@ DisplayTiming initializeDisplayTiming() {
     monitor.cbSize = sizeof(monitor);
     DEVMODE mode = {};
     mode.dmSize = sizeof(mode);
-    if (GetMonitorInfo(MonitorFromWindow(GetActiveWindow(), MONITOR_DEFAULTTONEAREST), &monitor)
+    const HWND window = WindowFromDC(wglGetCurrentDC());
+    if (GetMonitorInfo(MonitorFromWindow(window ? window : GetActiveWindow(), MONITOR_DEFAULTTONEAREST), &monitor)
         && EnumDisplaySettings(monitor.szDevice, ENUM_CURRENT_SETTINGS, &mode)
         && mode.dmDisplayFrequency > 1)
         timing.refreshHz = mode.dmDisplayFrequency;

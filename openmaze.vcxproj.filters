@@ -27,6 +27,15 @@
     <ClCompile Include="drawHUD.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="decoderLink.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="decoderProcess.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mazeRoute.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="helperMethods.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -39,6 +48,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Constants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="decoderLink.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="decoderProcess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mazeRoute.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

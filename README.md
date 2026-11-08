@@ -2,7 +2,7 @@
 
 A research project investigating EEG-based control of a 3D maze using steady-state visual evoked potentials (SSVEP) and canonical correlation analysis (CCA). The existing C++/OpenGL/FreeGLUT environment provides a testbed for evaluating neural command decoding and closed-loop navigation.
 
-**Current status:** manual navigation and four frame-sequenced visual targets are implemented. Hardware acquisition and optical measurement tools live in the companion [ssvep-acquisition](https://github.com/neurocontrol-lab/ssvep-acquisition) repository. Optical validation of the maze targets, EEG acquisition integration, CCA decoding, and neural control remain pending; this repository does not yet provide a working EEG-controlled system.
+**Current status:** manual navigation, four frame-sequenced visual targets, map-based route hints, and a live decoder link are implemented. Hardware acquisition and optical measurement tools live in [ssvep-acquisition](https://github.com/neurocontrol-lab/ssvep-acquisition); CCA runs in the companion [ssvep-decoding](https://github.com/neurocontrol-lab/ssvep-decoding) process. Reliable EEG steering still requires validation.
 
 ## Research direction
 
@@ -50,7 +50,40 @@ Originally developed for **UCSB CS280, Spring 2022**, the environment includes c
 - **Spacebar:** jump.
 - **Escape:** exit.
 
-These are the current manual controls; the planned BCI left/right commands will turn the viewpoint.
+EEG left/right commands also turn the viewpoint.
+
+### Route hint and live decoder run
+
+**Exit hint** uses the loaded walls to find a shortest route in cell steps to an open boundary. It shows **Go forward**, **Turn left**, or **Turn right** at the center of the view. The decoder status and controls stay in the top-left panel. The hint does not depend on EEG and does not move the player. Press **F2** to hide or show it.
+
+Build **Release / x64** in Visual Studio, then launch the executable from the navigation repository root so it can load `resources/`:
+
+```powershell
+.\x64\Release\openmaze.exe
+```
+
+The maze opens **fullscreen** by default. Add `--windowed` to launch in a resizable window. **Escape** exits either mode.
+
+With `ssvep-decoding` beside this repository, launching the game starts the decoder and enables EEG steering as soon as the focused maze receives a valid, matching stream. Use the **60 Hz** display setting, upload `eeg_streamer`, and close Arduino Serial Monitor/Plotter before launch. The game uses **COM3** and the **4 s / 3 harmonics** profile by default. It uses the decoder's `.venv` or the user's Conda environment named `venv`. Override either setting from PowerShell before launching:
+
+```powershell
+$env:SSVEP_DECODER_PORT = 'COM3'
+$env:SSVEP_DECODER_PYTHON = 'C:\path\to\python.exe'
+```
+
+The launched decoder records under the sibling repository's `sessions/`; startup messages and errors go to `sessions/maze-launch-<game PID>.log`, whose path is printed in the game console. **F3** pauses or resumes steering while recording continues, and retries if the decoder has exited. Closing the game ends the decoder session it launched.
+
+For a keyboard-only run, or to launch the decoder yourself, start the game with `--manual`. To monitor live scores without steering in that mode, run the decoder in another terminal (no PsychoPy window is needed):
+
+```powershell
+python -m ssvep_decoding live --port COM3 --seconds 165 --decoder ssvep_decoding/profiles/decoder_4s_3h.json --maze-hud --session sessions/mastoid_maze_monitor_01
+```
+
+The HUD shows the top-ranked direction and its score/margin at the top left. The accepted command appears below the centered exit hint. **Last pulse** shows what happened to the last emitted steering command, such as **applied**, **steering paused**, or **no movement (wall)**. Follow the exit hint with your eyes, and move manually when desired. Leave the maze in focus; **F1** pauses/resumes flicker. The game timer is about 185 seconds, so start the decoder soon after launch. A navigation run does not provide synchronized gaze labels for measuring decoding accuracy.
+
+The decoder sends short, versioned UDP messages to `127.0.0.1:46081`. The game [polls without blocking](https://learn.microsoft.com/en-us/windows/win32/winsock/nonblocking-i-o-2). Packets include the four CCA reference frequencies and a [Windows performance-counter timestamp shared across processes](https://docs.python.org/3.10/library/time.html#time.perf_counter). The HUD reports a profile mismatch if any reference differs by more than **0.10 Hz** from the game's nominal frequency. This catches configuration mismatches; it does not measure optical timing.
+
+For EEG steering, replace `--maze-hud` with `--maze-control` and use a new session name. Steering activates automatically the first time the focused game has synchronized flicker and a matching, valid control stream. Only newly emitted decisions produce a brief movement pulse, using the existing movement and collision code. Manual movement overrides the pulse. **F3** pauses or resumes steering. Focus loss, stale or rejected data, a frequency mismatch, paused flicker, or the end of a game disarms steering; press **F3** after the stream is ready again to resume. With the current research gates, a run can show scores without emitting any commands.
 
 ### Visual targets
 
